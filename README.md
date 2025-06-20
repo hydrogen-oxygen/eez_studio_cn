@@ -1,11 +1,14 @@
-[![GitHub release](https://img.shields.io/github/release/eez-open/studio.svg)](https://github.com/eez-open/studio/releases) [![license](https://img.shields.io/github/license/eez-open/studio.svg)](https://github.com/eez-open/studio/blob/master/LICENSE.TXT) [![liberapay](https://img.shields.io/liberapay/receives/eez-open.svg?logo=liberapay)](https://liberapay.com/eez-open/donate) [![Downloads](https://img.shields.io/github/downloads/eez-open/studio/total)](https://github.com/eez-open/studio/releases)
 
 ## 说明
 本仓库为 EEZ Stuido 的镜像仓库，软件由 [Envox d.o.o.](https://www.envox.si/) 开发。
 
 简体中文开发者：[乐乐龙果冻](https://github.com/gxdung)
 
-中文版本将根据官方版本来本地化，并视情况来修改软件的**页面样式**或**功能**。
+当前本地化未完成，仅适配约 30-40%。中文版本将根据官方版本来本地化，并视情况来修改软件的**页面样式**或**功能**。
+
+您需要安装 Node.JS v16 或更高版本才能运行软件。
+
+clone -> cd -> npm install -> npm run dev 即可
 
 如果您有任何问题，或翻译上的建议，请通过 [Issues](https://github.com/gxdung/eez_studio_cn/issues) 提出。
 

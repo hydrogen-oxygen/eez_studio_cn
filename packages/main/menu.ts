@@ -55,12 +55,12 @@ async function openProjectWithFileDialog(focusedWindow: BaseWindow) {
     const result = await dialog.showOpenDialog(focusedWindow, {
         properties: ["openFile"],
         filters: [
-            { name: "EEZ Project", extensions: ["eez-project"] },
+            { name: "EEZ 工程", extensions: ["eez-project"] },
             {
-                name: "EEZ Dashboard",
+                name: "EEZ 仪表盘",
                 extensions: ["eez-dashboard"]
             },
-            { name: "All Files", extensions: ["*"] }
+            { name: "全部文件", extensions: ["*"] }
         ]
     });
     const filePaths = result.filePaths;
@@ -234,7 +234,7 @@ function buildFileMenu(win: IWindow | undefined) {
                             {
                                 type: "error",
                                 title: "EEZ Studio",
-                                message: "File does not exist.",
+                                message: "文件不存在",
                                 detail: `The file '${mru.filePath}' does not seem to exist anymore.`
                             }
                         );
@@ -271,14 +271,11 @@ function buildFileMenu(win: IWindow | undefined) {
                         properties: ["openFile"],
                         filters: [
                             {
-                                name: "EEZ Debug Info",
+                                name: "EEZ 调试信息",
                                 extensions: ["eez-debug-info"]
                             },
-                            {
-                                name: "EEZ Debug Info",
-                                extensions: ["eez-debug-info"]
-                            },
-                            { name: "All Files", extensions: ["*"] }
+
+                            { name: "全部文件", extensions: ["*"] }
                         ]
                     });
                     const filePaths = result.filePaths;
@@ -291,7 +288,7 @@ function buildFileMenu(win: IWindow | undefined) {
 
         if (win.state.isDebuggerActive) {
             fileMenuSubmenu.push({
-                label: "Save Debug Info...",
+                label: "保存调试信息...",
                 click: function (item: any, focusedWindow: any) {
                     saveDebugInfo(focusedWindow);
                 }
@@ -310,10 +307,10 @@ function buildFileMenu(win: IWindow | undefined) {
                     properties: ["openFile"],
                     filters: [
                         {
-                            name: "Instrument Definition Files",
+                            name: "仪器定义文件",
                             extensions: ["zip"]
                         },
-                        { name: "All Files", extensions: ["*"] }
+                        { name: "所有文件", extensions: ["*"] }
                     ]
                 });
                 const filePaths = result.filePaths;
@@ -375,7 +372,7 @@ function buildFileMenu(win: IWindow | undefined) {
         if (win.state.hasExtensionDefinitions) {
             fileMenuSubmenu.push(
                 {
-                    label: "Build Extensions",
+                    label: "构建扩展",
                     click: function (item: any, focusedWindow: any) {
                         if (focusedWindow) {
                             focusedWindow.webContents.send("build-extensions");
@@ -383,7 +380,7 @@ function buildFileMenu(win: IWindow | undefined) {
                     }
                 },
                 {
-                    label: "Build and Install Extensions",
+                    label: "构建扩展并安装",
                     click: function (item: any, focusedWindow: any) {
                         if (focusedWindow) {
                             focusedWindow.webContents.send(

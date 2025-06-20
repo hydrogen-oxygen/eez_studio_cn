@@ -63,7 +63,7 @@ registerAction({
             )}
         </>
     ),
-    helpText: "Change the screen to the specified screen"
+    helpText: "切换到指定的屏幕"
 });
 
 ////////////////////////////////////////////////////////////////////////////////

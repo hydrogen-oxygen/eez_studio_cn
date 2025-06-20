@@ -2532,7 +2532,7 @@ export const lvglProperties: LVGLPropertiesGroup[] = [
     },
 
     {
-        groupName: "间距",
+        groupName: "内边距",
         groupDescription:
             "Properties to describe spacing between the parent's sides and the children and among the children. Very similar to the padding properties in HTML.",
         properties: [
@@ -2546,7 +2546,7 @@ export const lvglProperties: LVGLPropertiesGroup[] = [
     },
 
     {
-        groupName: "边距",
+        groupName: "外边距",
         groupDescription:
             "Properties to describe spacing around an object. Very similar to the margin properties in HTML.",
         properties: [
