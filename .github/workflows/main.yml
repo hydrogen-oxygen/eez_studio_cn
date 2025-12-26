@@ -3,66 +3,55 @@ name: Build/release
 on: push
 
 jobs:
-    release:
-        runs-on: ${{ matrix.os }}
+  release:
+    runs-on: ${{ matrix.os }}
 
-        # Platforms to build on/for
-        strategy:
-            fail-fast: false
-            matrix:
-                os: [ubuntu-22.04, windows-2019]
+    # Platforms to build on/for
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2019]
 
-        steps:
-            - name: Check out Git repository
-              uses: actions/checkout@v3
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
 
-            - name: Install Node.js, NPM and Yarn
-              uses: actions/setup-node@v3
-              with:
-                  node-version: 16
+      - name: Install Node.js (and optionally cache)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
 
-            - name: Additional step from MaCOS
-              if: startsWith(matrix.os, 'macos')
-              run: sudo -H pip install setuptools
+      # If you need Yarn you can install it explicitly, for example:
+      # - name: Install Yarn
+      #   run: npm install -g yarn
 
-            - name: Additional step for ubuntu
-              if: startsWith(matrix.os, 'ubuntu')
-              run: sudo apt-get install libudev-dev
+      - name: Additional step from macOS
+        if: startsWith(matrix.os, 'macos')
+        run: sudo -H pip install setuptools
 
-            #- name: Install Snapcraft
-            #  uses: samuelmeuli/action-snapcraft@v1
-            #  # Only install Snapcraft on Ubuntu
-            #  if: startsWith(matrix.os, 'ubuntu')
-            #  with:
-            #    # Log in to Snap Store
-            #    snapcraft_token: ${{ secrets.snapcraft_token }}
-            #- name: Prepare for app notarization (macOS)
-            #  if: startsWith(matrix.os, 'macos')
-            #  # Import Apple API key for app notarization on macOS
-            #  run: |
-            #    mkdir -p ~/private_keys/
-            #    echo '${{ secrets.api_key }}' > ~/private_keys/AuthKey_${{ secrets.api_key_id }}.p8
-            - name: Build/release Electron app
-              uses: coparse-inc/action-electron-builder@v1.0.0
-              with:
-                  # GitHub token, automatically provided to the action
-                  # (No need to define this secret in the repo settings)
-                  github_token: ${{ secrets.github_token }}
+      - name: Additional step for ubuntu
+        if: startsWith(matrix.os, 'ubuntu')
+        run: sudo apt-get update -y && sudo apt-get install -y libudev-dev
 
-                  ## macOS code signing certificate
-                  #mac_certs: ${{ secrets.mac_certs }}
-                  #mac_certs_password: ${{ secrets.mac_certs_password }}
+      # optional: install project dependencies before building (uncomment if needed)
+      # - name: Install dependencies
+      #   run: |
+      #     npm ci
+      #     # or: yarn install --frozen-lockfile
 
-                  ## If the commit is tagged with a version (e.g. "v1.0.0"),
-                  ## release the app after building
-                  #release: ${{ startsWith(github.ref, 'refs/tags/v') }}
-                  release: 1
-              #env:
-              ## macOS notarization API key
-              #API_KEY_ID: ${{ secrets.api_key_id }}
-              #API_KEY_ISSUER_ID: ${{ secrets.api_key_issuer_id }}
-             - name: Upload build artifacts
-               uses: actions/upload-artifact@v4
-               with:
-                   name: electron-app-${{ runner.os }}
-                   path: release
+      - name: Build/release Electron app
+        uses: coparse-inc/action-electron-builder@v1.0.0
+        with:
+          # 使用 GitHub 提供的 token（注意大小写）
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # 如果 action 文档要求布尔值，使用 true/false
+          release: true
+        #env:
+        #  API_KEY_ID: ${{ secrets.api_key_id }}
+        #  API_KEY_ISSUER_ID: ${{ secrets.api_key_issuer_id }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-app-${{ runner.os }}
+          path: release
