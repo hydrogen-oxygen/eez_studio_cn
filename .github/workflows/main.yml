@@ -53,5 +53,5 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: electron-app-${{ runner.os }}
-          path: release
+          name: eez-studio-${{ runner.os }}
+          path: dist
