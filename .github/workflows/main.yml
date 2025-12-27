@@ -1,72 +1,83 @@
-# 当此工作流文件被修改时自动运行
-name: Build and Release Workflow
+name: Auto Release on Workflow Update
 
 on:
   push:
     paths:
-      - '.github/workflows/**'  # 当 .github/workflows 目录下的文件被修改时触发
+      - '.github/workflows/**'  # 只监听工作流文件修改
     branches:
-      - main  # 仅在 main 分支修改时触发（可选，可删除此限制）
-  # 同时保留标签推送的触发，改为注释状态，可按需启用
-  # push:
-  #   tags:
-  #     - '*'
+      - main  # 可选：限制在特定分支
 
-# 允许内置 GITHUB_TOKEN 写入 Release（必要）
 permissions:
   contents: write
 
 jobs:
-  create-release:
-    name: Create GitHub Release
+  create-unique-release:
+    name: Create Unique GitHub Release
     runs-on: ubuntu-latest
-    # 添加输出变量
     outputs:
       upload_url: ${{ steps.create.outputs.upload_url }}
+      tag_name: ${{ steps.generate-tag.outputs.tag_name }}
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
-        # 获取所有标签信息
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # 获取完整提交历史
 
-      - name: Get latest tag
-        id: get_tag
-        # 获取最新的标签用于创建Release
+      - name: Generate Unique Tag Name
+        id: generate-tag
         run: |
-          # 获取最新的标签
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No tags found. Creating new tag..."
-            # 如果没有标签，可以创建一个基于日期时间的标签
-            NEW_TAG="v$(date +%Y.%m.%d.%H%M)"
-            git tag $NEW_TAG
-            git push origin $NEW_TAG
-            echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
+          # 获取当前时间戳（精确到秒）
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          # 获取最近一次提交的短哈希
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          
+          # 检查是否已有类似格式的标签
+          PATTERN="auto-release-.*-${COMMIT_HASH}"
+          EXISTING_TAGS=$(git tag --list "$PATTERN" | sort -V)
+          
+          if [ -z "$EXISTING_TAGS" ]; then
+            # 如果没有找到，从1开始编号
+            NEW_TAG="auto-release-1-${TIMESTAMP}-${COMMIT_HASH}"
           else
-            echo "Latest tag: $LATEST_TAG"
-            echo "tag_name=$LATEST_TAG" >> $GITHUB_OUTPUT
+            # 找出最大的编号并递增
+            MAX_NUM=0
+            while read -r TAG; do
+              NUM=$(echo "$TAG" | sed -n 's/auto-release-\([0-9]*\)-.*/\1/p')
+              if [ -n "$NUM" ] && [ "$NUM" -gt "$MAX_NUM" ]; then
+                MAX_NUM=$NUM
+              fi
+            done <<< "$EXISTING_TAGS"
+            
+            NEW_TAG="auto-release-$((MAX_NUM + 1))-${TIMESTAMP}-${COMMIT_HASH}"
           fi
 
-      - name: Create Release
+          echo "Generated new tag: $NEW_TAG"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+          echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
         id: create
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag_name || github.ref_name }}
-          release_name: ${{ steps.get_tag.outputs.tag_name || github.ref_name }}
+          tag_name: ${{ steps.generate-tag.outputs.tag_name }}
+          release_name: "Auto Release - ${{ steps.generate-tag.outputs.tag_name }}"
+          body: |
+            This release was automatically created when the workflow file was modified.
+            Tag: ${{ steps.generate-tag.outputs.tag_name }}
           draft: false
           prerelease: false
 
   build-windows:
-    name: Build Windows installers (NSIS)
-    needs: create-release
+    name: Build Windows Installer (NSIS)
+    needs: create-unique-release
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -75,28 +86,27 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Run project build (TypeScript and pre-build steps)
+      - name: Build Project
         run: npm run build
 
-      - name: Install NSIS (required for NSIS target)
+      - name: Install NSIS
         shell: pwsh
-        run: |
-          choco install -y nsis
+        run: choco install -y nsis
 
-      - name: Build Windows installer and publish to Release
+      - name: Build and Publish Installer
         run: npx electron-builder --win nsis --x64 --publish always
 
   build-deb:
-    name: Build Debian .deb
-    needs: create-release
+    name: Build Debian Package (.deb)
+    needs: create-unique-release
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -105,14 +115,17 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install apt build deps (native modules may require these)
-        run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg-dev build-essential libudev-dev libusb-1.0-0-dev pkg-config
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fakeroot dpkg-dev build-essential \
+            libudev-dev libusb-1.0-0-dev pkg-config
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm ci
 
-      - name: Run project build (TypeScript and pre-build steps)
+      - name: Build Project
         run: npm run build
 
-      - name: Build Debian package and publish to Release
+      - name: Build and Publish Debian Package
         run: npx electron-builder --linux deb --x64 --publish always
