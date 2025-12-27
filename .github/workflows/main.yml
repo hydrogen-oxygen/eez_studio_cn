@@ -1,9 +1,10 @@
-# 当 push tag 时，自动创建 GitHub Release（publish）并构建上传安装包
+# 当 push tag 时：自动创建并 publish Release，然后在 Windows 与 Ubuntu runner 上构建并上传安装包
 on:
   push:
     tags:
       - '*'
 
+# 允许内置 GITHUB_TOKEN 写入 Release（必要）
 permissions:
   contents: write
 
@@ -20,8 +21,10 @@ jobs:
       - name: Create Release
         id: create
         uses: actions/create-release@v1
+        # 把 token 作为环境变量提供（不要用 with: token，因为 actions/create-release 不接受该输入）
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
           draft: false
@@ -32,6 +35,7 @@ jobs:
     needs: create-release
     runs-on: windows-latest
     env:
+      # electron-builder 会读取 GH_TOKEN 上传到 Release
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
@@ -49,13 +53,12 @@ jobs:
       - name: Run project build (TypeScript and pre-build steps)
         run: npm run build
 
-      - name: Install NSIS (needed by electron-builder NSIS target)
+      - name: Install NSIS (required for NSIS target)
         shell: pwsh
         run: |
           choco install -y nsis
 
       - name: Build Windows installer and publish to Release
-        # electron-builder will upload to the Release because GH_TOKEN is provided
         run: npx electron-builder --win nsis --x64 --publish always
 
   build-deb:
