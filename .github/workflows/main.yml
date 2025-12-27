@@ -1,29 +1,29 @@
-name: Auto Release on Workflow Update
-
+name: Auto Release with Electron Packages
 on:
   push:
     paths:
-      - '.github/workflows/**'  # 只监听工作流文件修改
+      - '.github/workflows/**'  # 监听工作流文件修改（可根据需求调整）
     branches:
-      - main  # 可选：限制在特定分支
+      - main  # 限制在 main 分支（可选）
 
 permissions:
-  contents: write
+  contents: write  # 允许创建 Release 和上传资产
 
 jobs:
-  create-unique-release:
-    name: Create Unique GitHub Release
+  # 1. 创建唯一 Release
+  create-release:
+    name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create.outputs.upload_url }}
       tag_name: ${{ steps.generate-tag.outputs.tag_name }}
     steps:
-      - name: Checkout Repository
+      - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # 获取完整提交历史
 
-      - name: Generate Unique Tag Name
+      - name: 生成唯一标签名
         id: generate-tag
         run: |
           # 获取当前时间戳（精确到秒）
@@ -56,7 +56,7 @@ jobs:
           git push origin $NEW_TAG
           echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: 创建 GitHub Release
         id: create
         uses: actions/create-release@v1
         env:
@@ -70,62 +70,70 @@ jobs:
           draft: false
           prerelease: false
 
-  build-windows:
-    name: Build Windows Installer (NSIS)
-    needs: create-unique-release
+  # 2. 构建并上传 Windows 安装包（exe）
+  build-win:
+    name: Build & Upload Windows (NSIS)
+    needs: create-release  # 依赖 Release 创建完成
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: 设置 Node.js 环境
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '18'  # 替换为你的项目版本
           cache: 'npm'
 
-      - name: Install Dependencies
+      - name: 安装依赖
         run: npm ci
 
-      - name: Build Project
-        run: npm run build
+      - name: 构建项目（源码）
+        run: npm run build  # 替换为你的构建脚本（如 electron:build）
 
-      - name: Install NSIS
+      - name: 安装 NSIS（Windows 安装包工具）
         shell: pwsh
         run: choco install -y nsis
 
-      - name: Build and Publish Installer
+      - name: 构建并上传 Windows 安装包
         run: npx electron-builder --win nsis --x64 --publish always
+        env:
+          # 传递 Release 的上传 URL（用于上传安装包）
+          RELEASE_UPLOAD_URL: ${{ steps.create.outputs.upload_url }}
 
+  # 3. 构建并上传 Debian 包（.deb）
   build-deb:
-    name: Build Debian Package (.deb)
-    needs: create-unique-release
+    name: Build & Upload Debian (.deb)
+    needs: create-release  # 依赖 Release 创建完成
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout
+      - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: 设置 Node.js 环境
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '18'  # 替换为你的项目版本
           cache: 'npm'
 
-      - name: Install Build Dependencies
+      - name: 安装构建依赖
         run: |
           sudo apt-get update
           sudo apt-get install -y fakeroot dpkg-dev build-essential \
             libudev-dev libusb-1.0-0-dev pkg-config
 
-      - name: Install Dependencies
+      - name: 安装项目依赖
         run: npm ci
 
-      - name: Build Project
-        run: npm run build
+      - name: 构建项目（源码）
+        run: npm run build  # 替换为你的构建脚本（如 electron:build）
 
-      - name: Build and Publish Debian Package
+      - name: 构建并上传 Debian 包
         run: npx electron-builder --linux deb --x64 --publish always
+        env:
+          # 传递 Release 的上传 URL（用于上传安装包）
+          RELEASE_UPLOAD_URL: ${{ steps.create.outputs.upload_url }}
