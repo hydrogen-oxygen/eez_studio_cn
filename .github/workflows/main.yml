@@ -1,8 +1,16 @@
-# 当 push tag 时：自动创建并 publish Release，然后在 Windows 与 Ubuntu runner 上构建并上传安装包
+# 当此工作流文件被修改时自动运行
+name: Build and Release Workflow
+
 on:
   push:
-    tags:
-      - '*'
+    paths:
+      - '.github/workflows/**'  # 当 .github/workflows 目录下的文件被修改时触发
+    branches:
+      - main  # 仅在 main 分支修改时触发（可选，可删除此限制）
+  # 同时保留标签推送的触发，改为注释状态，可按需启用
+  # push:
+  #   tags:
+  #     - '*'
 
 # 允许内置 GITHUB_TOKEN 写入 Release（必要）
 permissions:
@@ -12,21 +20,42 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    # 添加输出变量
     outputs:
       upload_url: ${{ steps.create.outputs.upload_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        # 获取所有标签信息
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: get_tag
+        # 获取最新的标签用于创建Release
+        run: |
+          # 获取最新的标签
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No tags found. Creating new tag..."
+            # 如果没有标签，可以创建一个基于日期时间的标签
+            NEW_TAG="v$(date +%Y.%m.%d.%H%M)"
+            git tag $NEW_TAG
+            git push origin $NEW_TAG
+            echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "Latest tag: $LATEST_TAG"
+            echo "tag_name=$LATEST_TAG" >> $GITHUB_OUTPUT
+          fi
 
       - name: Create Release
         id: create
         uses: actions/create-release@v1
-        # 把 token 作为环境变量提供（不要用 with: token，因为 actions/create-release 不接受该输入）
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
+          tag_name: ${{ steps.get_tag.outputs.tag_name || github.ref_name }}
+          release_name: ${{ steps.get_tag.outputs.tag_name || github.ref_name }}
           draft: false
           prerelease: false
 
@@ -35,7 +64,6 @@ jobs:
     needs: create-release
     runs-on: windows-latest
     env:
-      # electron-builder 会读取 GH_TOKEN 上传到 Release
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
