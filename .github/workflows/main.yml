@@ -1,4 +1,4 @@
-# 当 push tag 时，自动创建 GitHub Release（draft=false -> publish）并构建上传安装包
+# 当 push tag 时，自动创建 GitHub Release（publish）并构建上传安装包
 on:
   push:
     tags:
@@ -21,50 +21,67 @@ jobs:
         id: create
         uses: actions/create-release@v1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ github.ref_name }}
           release_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
 
   build-windows:
-    name: Build Windows installers
+    name: Build Windows installers (NSIS)
     needs: create-release
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - name: Install deps
+          cache: 'npm'
+
+      - name: Install dependencies
         run: npm ci
-      - name: Run project build
+
+      - name: Run project build (TypeScript and pre-build steps)
         run: npm run build
-      - name: Install NSIS
+
+      - name: Install NSIS (needed by electron-builder NSIS target)
         shell: pwsh
-        run: choco install -y nsis
-      - name: Build and upload
+        run: |
+          choco install -y nsis
+
+      - name: Build Windows installer and publish to Release
+        # electron-builder will upload to the Release because GH_TOKEN is provided
         run: npx electron-builder --win nsis --x64 --publish always
 
   build-deb:
-    name: Build Debian package
+    name: Build Debian .deb
     needs: create-release
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Node
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - name: Install apt build deps
+          cache: 'npm'
+
+      - name: Install apt build deps (native modules may require these)
         run: sudo apt-get update && sudo apt-get install -y fakeroot dpkg-dev build-essential libudev-dev libusb-1.0-0-dev pkg-config
-      - name: Install deps
+
+      - name: Install dependencies
         run: npm ci
-      - name: Run project build
+
+      - name: Run project build (TypeScript and pre-build steps)
         run: npm run build
-      - name: Build and upload
+
+      - name: Build Debian package and publish to Release
         run: npx electron-builder --linux deb --x64 --publish always
