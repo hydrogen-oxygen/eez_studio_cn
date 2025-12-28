@@ -199,15 +199,15 @@
     ],
     "win": {
       "target": "nsis", // Windows 安装包格式（NSIS），生成 .exe
-      "icon": "path/to/icon.ico" // 可选：应用图标路径
+      "icon": "icon.ico" // 可选：应用图标路径
     },
     "linux": {
       "target": "deb", // Linux 安装包格式（DEB），生成 .deb
-      "icon": "path/to/icon.png" // 可选：应用图标路径
+      "icon": "icon.png" // 可选：应用图标路径
     },
     "mac": {
       "target": "dmg", // macOS 安装包格式（DMG），可选
-      "icon": "path/to/icon.icns" // 可选：应用图标路径
+      "icon": "icon.icns" // 可选：应用图标路径
     }
   }
 }
