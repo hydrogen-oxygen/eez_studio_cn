@@ -4,7 +4,7 @@ on:
     paths:
       - '.github/workflows/**'  # 监听工作流文件修改（可根据需求调整）
     branches:
-      - main  # 限制在 main 分支（可选）
+      - main  # 限制在 main 分支
 
 permissions:
   contents: write  # 允许创建 Release 和上传资产
